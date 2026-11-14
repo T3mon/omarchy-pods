@@ -3,7 +3,7 @@
 
 const source = Deno.readTextFileSync(new URL("../Model.js", import.meta.url))
 const Model = new Function(
-  source + "; return { parseStatus, podFrom, defaultPod, noiseModeVerb, earDetectionVerb, levelFraction, levelText, podMeta, elideError, availableModes, newDrainTracker, wornLevel, trackDrain, timeLeftText, NOISE_OFF, NOISE_ANC, NOISE_TRANSPARENCY, NOISE_ADAPTIVE, LEVEL_UNKNOWN, NOISE_UNKNOWN, EAR_PAUSE_ONE_OUT, LID_UNKNOWN, MAX_ERROR_CHARS }"
+  source + "; return { parseStatus, podFrom, defaultPod, noiseModeVerb, earDetectionVerb, levelFraction, levelText, podMeta, elideError, availableModes, newDrainTracker, wornLevel, trackDrain, podTimeLeft, NOISE_OFF, NOISE_ANC, NOISE_TRANSPARENCY, NOISE_ADAPTIVE, LEVEL_UNKNOWN, NOISE_UNKNOWN, EAR_PAUSE_ONE_OUT, LID_UNKNOWN, MAX_ERROR_CHARS }"
 )()
 
 let failures = 0
@@ -171,11 +171,14 @@ check("a pod out of the ear is ignored",
 check("nothing worn is unknown",
   Model.wornLevel({ level: 80, inEar: false, charging: false }, { level: 20, inEar: false, charging: true }), Model.LEVEL_UNKNOWN)
 
-check("no rate shows nothing", Model.timeLeftText(80, undefined), "")
-check("hours and minutes", Model.timeLeftText(50, 15), "About 3 h 20 min left")
-check("whole hours drop the minutes", Model.timeLeftText(30, 15), "About 2 h left")
-check("under an hour", Model.timeLeftText(5, 15), "About 20 min left")
-check("almost empty", Model.timeLeftText(1, 15), "Under 10 min left")
+const inEar = (level) => ({ level, inEar: true, charging: false })
+check("no rate shows nothing", Model.podTimeLeft(inEar(80), undefined), "")
+check("hours and minutes", Model.podTimeLeft(inEar(50), 15), "3h 20m")
+check("whole hours drop the minutes", Model.podTimeLeft(inEar(30), 15), "2h")
+check("under an hour", Model.podTimeLeft(inEar(5), 15), "20m")
+check("almost empty", Model.podTimeLeft(inEar(1), 15), "<10m")
+check("a pod out of the ear shows nothing", Model.podTimeLeft({ level: 80, inEar: false, charging: false }, 15), "")
+check("a charging pod shows nothing", Model.podTimeLeft({ level: 80, inEar: true, charging: true }, 15), "")
 
 if (failures > 0) {
   console.log(failures + " failed")

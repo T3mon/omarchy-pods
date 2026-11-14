@@ -36,7 +36,7 @@ Item {
   property var drainRates: ({})
   property var _drainTracker: Model.newDrainTracker()
   readonly property int wornLevel: Model.wornLevel(leftPod, rightPod)
-  readonly property string timeLeft: hasAirPods ? Model.timeLeftText(wornLevel, drainRates[noiseMode]) : ""
+  readonly property real drainRate: hasAirPods ? (drainRates[noiseMode] || 0) : 0
 
   readonly property string ctlPath: String(setting("ctlPath", "") || "librepods-ctl")
   readonly property bool busy: commandProcess.running

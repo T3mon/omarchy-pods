@@ -268,15 +268,6 @@ Panel {
                 meta: root.lidLabel
               }
             }
-
-            Text {
-              visible: pods.timeLeft !== ""
-              textFormat: Text.PlainText
-              text: pods.timeLeft
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-            }
           }
 
           PanelSeparator {
@@ -411,7 +402,8 @@ Panel {
     property var pod: Model.defaultPod()
     property string meta: ""
 
-    readonly property string metaText: meta !== "" ? meta : Model.podMeta(pod)
+    readonly property string timeLeft: Model.podTimeLeft(pod, pods.drainRate)
+    readonly property string metaText: meta !== "" ? meta : timeLeft !== "" ? timeLeft : Model.podMeta(pod)
     readonly property bool low: pod.level !== Model.LEVEL_UNKNOWN
       && pod.level <= root.lowBatteryPercent && !pod.charging
 

@@ -275,13 +275,14 @@ function trackDrain(tracker, rates, nowMs, level, mode) {
   return next
 }
 
-// "About 3 h 20 min left", rounded to ten minutes, or "" until this mode has a learned rate.
-function timeLeftText(level, rate) {
-  if (level === LEVEL_UNKNOWN || !(rate > 0)) return ""
-  var minutes = Math.round(level / rate * 60 / 10) * 10
-  if (minutes < 10) return "Under 10 min left"
+// "3h 20m", rounded to ten minutes, short enough for the pod row's meta column.
+// Empty until this mode has a learned rate, and for a pod not in an ear or charging.
+function podTimeLeft(pod, rate) {
+  if (!pod.inEar || pod.charging || pod.level === LEVEL_UNKNOWN || !(rate > 0)) return ""
+  var minutes = Math.round(pod.level / rate * 60 / 10) * 10
+  if (minutes < 10) return "<10m"
   var h = Math.floor(minutes / 60)
   var m = minutes % 60
-  if (h === 0) return "About " + m + " min left"
-  return "About " + h + " h" + (m > 0 ? " " + m + " min" : "") + " left"
+  if (h === 0) return m + "m"
+  return h + "h" + (m > 0 ? " " + m + "m" : "")
 }
