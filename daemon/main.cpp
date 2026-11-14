@@ -378,8 +378,20 @@ public slots:
         }
         LOG_INFO("Setting noise control mode to: " << mode);
         QByteArray packet = AirPodsPackets::NoiseControl::getPacketForMode(mode);
-        writePacketToSocket(packet, "Noise control mode packet written: ");
         ++m_noiseControlChangesTotal;
+        if (mode == NoiseControlMode::Off)
+        {
+            // AirPods Pro 2 firmware 9B47 rejects Off (chime, echoes the
+            // current mode) unless "Allow Off" (0x34) is enabled, and the
+            // update can reset it to disabled. Re-assert it, then give the
+            // buds a moment: an Off sent right behind it is still rejected.
+            writePacketToSocket(AirPodsPackets::AllowOffOption::ENABLED, "Allow Off option packet written: ");
+            QTimer::singleShot(1500, this, [this, packet]() {
+                writePacketToSocket(packet, "Noise control mode packet written: ");
+            });
+            return;
+        }
+        writePacketToSocket(packet, "Noise control mode packet written: ");
     }
     void setNoiseControlModeInt(int mode)
     {
@@ -1267,6 +1279,12 @@ private slots:
         else if (data.startsWith(AirPodsPackets::Parse::FEATURES_ACK))
         {
             writePacketToSocket(AirPodsPackets::Connection::REQUEST_NOTIFICATIONS, "Request notifications packet written: ");
+
+            // Keep "Allow Off" enabled so the Off listening mode is accepted
+            // (see setNoiseControlMode). Models without Off ignore it.
+            QTimer::singleShot(1000, this, [this]() {
+                writePacketToSocket(AirPodsPackets::AllowOffOption::ENABLED, "Allow Off option packet written: ");
+            });
 
             QTimer::singleShot(2000, this, [this]() {
                 if (m_deviceInfo->batteryStatus().isEmpty()) {
