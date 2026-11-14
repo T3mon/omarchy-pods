@@ -227,3 +227,61 @@ function elideError(text) {
   var value = String(text || "").replace(/\s+/g, " ").trim()
   return value.length > MAX_ERROR_CHARS ? value.substring(0, ELIDED_ERROR_CHARS) + "…" : value
 }
+
+// Readings only arrive on change, so a gap this long means a suspend or a restart, not a quiet run.
+var DRAIN_GAP_MS = 30 * 60 * 1000
+// Percent a run must fall before it is trusted, since one step of a 1% meter is mostly rounding.
+var DRAIN_MIN_DROP = 3
+// Weight of a new run against the learned rate, so one odd session cannot swing it.
+var DRAIN_BLEND = 0.3
+
+function newDrainTracker() {
+  return { prevLevel: LEVEL_UNKNOWN, prevMode: NOISE_UNKNOWN, prevTime: 0, anchor: null }
+}
+
+// The pod that runs out first, counting only pods in an ear and not charging.
+function wornLevel(left, right) {
+  var levels = [left, right]
+    .filter(function (pod) { return pod.inEar && !pod.charging && pod.level !== LEVEL_UNKNOWN })
+    .map(function (pod) { return pod.level })
+  return levels.length === 0 ? LEVEL_UNKNOWN : Math.min.apply(null, levels)
+}
+
+// Feeds one reading in; returns the rates, with this mode's updated when a run finished.
+// The anchor is only set on a step down, because the first reading lands mid-percent.
+function trackDrain(tracker, rates, nowMs, level, mode) {
+  var next = Object.assign({}, rates)
+  var unusable = level === LEVEL_UNKNOWN || mode === NOISE_UNKNOWN
+  var broken = unusable
+    || mode !== tracker.prevMode
+    || level > tracker.prevLevel
+    || nowMs - tracker.prevTime > DRAIN_GAP_MS
+  if (broken) {
+    tracker.anchor = null
+  } else if (level < tracker.prevLevel) {
+    if (!tracker.anchor) {
+      tracker.anchor = { level: level, time: nowMs }
+    } else if (tracker.anchor.level - level >= DRAIN_MIN_DROP) {
+      var hours = (nowMs - tracker.anchor.time) / 3600000
+      var measured = (tracker.anchor.level - level) / hours
+      var old = next[mode]
+      next[mode] = old ? old * (1 - DRAIN_BLEND) + measured * DRAIN_BLEND : measured
+      tracker.anchor = { level: level, time: nowMs }
+    }
+  }
+  tracker.prevLevel = unusable ? LEVEL_UNKNOWN : level
+  tracker.prevMode = unusable ? NOISE_UNKNOWN : mode
+  tracker.prevTime = nowMs
+  return next
+}
+
+// "About 3 h 20 min left", rounded to ten minutes, or "" until this mode has a learned rate.
+function timeLeftText(level, rate) {
+  if (level === LEVEL_UNKNOWN || !(rate > 0)) return ""
+  var minutes = Math.round(level / rate * 60 / 10) * 10
+  if (minutes < 10) return "Under 10 min left"
+  var h = Math.floor(minutes / 60)
+  var m = minutes % 60
+  if (h === 0) return "About " + m + " min left"
+  return "About " + h + " h" + (m > 0 ? " " + m + " min" : "") + " left"
+}

@@ -3,7 +3,7 @@
 
 const source = Deno.readTextFileSync(new URL("../Model.js", import.meta.url))
 const Model = new Function(
-  source + "; return { parseStatus, podFrom, defaultPod, noiseModeVerb, earDetectionVerb, levelFraction, levelText, podMeta, elideError, availableModes, NOISE_OFF, NOISE_ANC, NOISE_TRANSPARENCY, NOISE_ADAPTIVE, LEVEL_UNKNOWN, NOISE_UNKNOWN, EAR_PAUSE_ONE_OUT, LID_UNKNOWN, MAX_ERROR_CHARS }"
+  source + "; return { parseStatus, podFrom, defaultPod, noiseModeVerb, earDetectionVerb, levelFraction, levelText, podMeta, elideError, availableModes, newDrainTracker, wornLevel, trackDrain, timeLeftText, NOISE_OFF, NOISE_ANC, NOISE_TRANSPARENCY, NOISE_ADAPTIVE, LEVEL_UNKNOWN, NOISE_UNKNOWN, EAR_PAUSE_ONE_OUT, LID_UNKNOWN, MAX_ERROR_CHARS }"
 )()
 
 let failures = 0
@@ -136,6 +136,46 @@ check("a Pro 3 loses Off and keeps Adaptive", modesFor(good),
   [Model.NOISE_TRANSPARENCY, Model.NOISE_ADAPTIVE, Model.NOISE_ANC])
 check("a Max 2 gets all four", modesFor(max2),
   [Model.NOISE_OFF, Model.NOISE_TRANSPARENCY, Model.NOISE_ADAPTIVE, Model.NOISE_ANC])
+
+// Battery time left: one reading a minute, a pod losing 1% every 4 minutes, which is 15% an hour.
+const MIN = 60000
+function drain(tracker, rates, start, from, steps, mode, gapAt) {
+  let t = start
+  for (let i = 0; i <= steps; i++) {
+    if (gapAt !== undefined && i === gapAt) t += 30 * MIN
+    rates = Model.trackDrain(tracker, rates, t, from - Math.floor(i / 4), mode)
+    t += MIN
+  }
+  return rates
+}
+let tr = Model.newDrainTracker()
+let rates = drain(tr, {}, 0, 80, 40, Model.NOISE_OFF)
+check("steady drain learns 15% an hour", Math.round(rates[Model.NOISE_OFF]), 15)
+check("a mode with no runs has no rate", rates[Model.NOISE_ANC], undefined)
+check("too few steps learn nothing", drain(Model.newDrainTracker(), {}, 0, 80, 10, Model.NOISE_OFF), {})
+check("a disconnect gap voids the run", drain(Model.newDrainTracker(), {}, 0, 80, 14, Model.NOISE_OFF, 6), {})
+tr = Model.newDrainTracker()
+rates = drain(tr, {}, 0, 80, 20, Model.NOISE_OFF)
+rates = Model.trackDrain(tr, rates, 21 * MIN, 75, Model.NOISE_ANC)
+check("switching mode does not credit the old mode's run to the new one", rates[Model.NOISE_ANC], undefined)
+// A 6% an hour run against a learned 15 moves it only to 12.3.
+tr = Model.newDrainTracker()
+rates = { [Model.NOISE_OFF]: 15 }
+for (let i = 0; i <= 31; i++) rates = Model.trackDrain(tr, rates, i * MIN, 61 - Math.floor((i + 9) / 10), Model.NOISE_OFF)
+check("a learned rate blends slowly", Math.round(rates[Model.NOISE_OFF] * 10) / 10, 12.3)
+
+check("worn level is the lower in-ear pod",
+  Model.wornLevel({ level: 80, inEar: true, charging: false }, { level: 70, inEar: true, charging: false }), 70)
+check("a pod out of the ear is ignored",
+  Model.wornLevel({ level: 80, inEar: true, charging: false }, { level: 20, inEar: false, charging: false }), 80)
+check("nothing worn is unknown",
+  Model.wornLevel({ level: 80, inEar: false, charging: false }, { level: 20, inEar: false, charging: true }), Model.LEVEL_UNKNOWN)
+
+check("no rate shows nothing", Model.timeLeftText(80, undefined), "")
+check("hours and minutes", Model.timeLeftText(50, 15), "About 3 h 20 min left")
+check("whole hours drop the minutes", Model.timeLeftText(30, 15), "About 2 h left")
+check("under an hour", Model.timeLeftText(5, 15), "About 20 min left")
+check("almost empty", Model.timeLeftText(1, 15), "Under 10 min left")
 
 if (failures > 0) {
   console.log(failures + " failed")

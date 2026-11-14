@@ -32,12 +32,18 @@ Item {
   property var headsetBattery: ({ level: Model.LEVEL_UNKNOWN, charging: false })
   property string lastError: ""
   property string actionStatus: ""
+  // Percent an hour per listening mode, learned from use and kept across restarts.
+  property var drainRates: ({})
+  property var _drainTracker: Model.newDrainTracker()
+  readonly property int wornLevel: Model.wornLevel(leftPod, rightPod)
+  readonly property string timeLeft: hasAirPods ? Model.timeLeftText(wornLevel, drainRates[noiseMode]) : ""
 
   readonly property string ctlPath: String(setting("ctlPath", "") || "librepods-ctl")
   readonly property bool busy: commandProcess.running
   // The daemon publishes here on change, so there is nothing to poll.
-  readonly property string statePath: (Quickshell.env("XDG_STATE_HOME")
-    || Quickshell.env("HOME") + "/.local/state") + "/librepods/status.json"
+  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME")
+    || Quickshell.env("HOME") + "/.local/state") + "/librepods"
+  readonly property string statePath: stateDir + "/status.json"
   readonly property bool hasAirPods: daemonReachable && connected
   // Battery keeps arriving over BLE while the audio link is down, so it is not gated on connected.
   readonly property bool hasBattery: daemonReachable
@@ -87,6 +93,7 @@ Item {
 
   // The daemon removes the file when it stops, so an absent file is a stopped daemon.
   function stateGone() {
+    _trackDrain()
     daemonReachable = false
     connected = false
     schemaUnsupported = false
@@ -115,6 +122,17 @@ Item {
     oneBudANC = _settle("oneBudANC", status.oneBudANC)
     conversationalAwareness = _settle("conversationalAwareness", status.conversationalAwareness)
     earDetectionBehavior = _settle("earDetectionBehavior", status.earDetectionBehavior)
+    _trackDrain()
+  }
+
+  // The reported mode, not the optimistic one, since the buds drain by what they actually run.
+  function _trackDrain() {
+    var level = daemonReachable && connected ? wornLevel : Model.LEVEL_UNKNOWN
+    var mode = _pendingField === "noiseMode" ? Model.NOISE_UNKNOWN : noiseMode
+    var next = Model.trackDrain(_drainTracker, drainRates, Date.now(), level, mode)
+    if (JSON.stringify(next) === JSON.stringify(drainRates)) return
+    drainRates = next
+    drainFile.setText(JSON.stringify(next))
   }
 
   function _settle(field, reported) {
@@ -215,6 +233,15 @@ Item {
     onFileChanged: reload()
     onLoaded: root.applyLine(text())
     onLoadFailed: root.stateGone()
+  }
+
+  FileView {
+    id: drainFile
+    path: root.stateDir + "/battery-drain.json"
+    printErrors: false
+    onLoaded: {
+      try { root.drainRates = JSON.parse(text()) || {} } catch (e) { root.drainRates = {} }
+    }
   }
 
   Process {

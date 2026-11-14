@@ -268,6 +268,15 @@ Panel {
                 meta: root.lidLabel
               }
             }
+
+            Text {
+              visible: pods.timeLeft !== ""
+              textFormat: Text.PlainText
+              text: pods.timeLeft
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
           }
 
           PanelSeparator {
