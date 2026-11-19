@@ -5,8 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://omarchyplugins.com/plugin.html?id=io.github.thisisgm.omapods"><img alt="On omarchyplugins.com" src="https://img.shields.io/badge/omarchyplugins.com-listed-8b5cf6"></a>
-  <a href="https://github.com/thisisgm/omarchy-pods/tags"><img alt="Latest tag" src="https://img.shields.io/github/v/tag/thisisgm/omarchy-pods?label=version"></a>
+  <a href="https://github.com/T3mon/omarchy-pods/tags"><img alt="Latest tag" src="https://img.shields.io/github/v/tag/T3mon/omarchy-pods?label=version"></a>
 </p>
 
 <p align="center">
@@ -148,13 +147,11 @@ of writing. Nothing in this daemon does that today.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/thisisgm/omarchy-pods --enable
-~/.config/omarchy/plugins/io.github.thisisgm.omapods/setup
+omarchy plugin add https://github.com/T3mon/omarchy-pods --enable
+~/.config/omarchy/plugins/t3mon.omapods/setup
 ```
 
-`--enable` already places the widget on the right of the bar. The
-[marketplace listing](https://omarchyplugins.com/plugin.html?id=io.github.thisisgm.omapods)
-installs to the same place.
+`--enable` already places the widget on the right of the bar.
 
 `setup` installs `cmake`, `ninja`, `qt6-connectivity`, `qt6-tools`,
 `qt6-declarative`, `pkgconf` and `libpulse` if they are missing, builds the
@@ -162,14 +159,14 @@ daemon into `~/.local`, and enables `librepods.service`. The icon stays hidden
 until AirPods are connected (`hideWhenDisconnected`). To keep it visible:
 
 ```bash
-omarchy bar set io.github.thisisgm.omapods hideWhenDisconnected false --json
+omarchy bar set t3mon.omapods hideWhenDisconnected false --json
 ```
 
 To build the daemon by hand instead of running `setup`:
 
 ```bash
 omarchy pkg add cmake ninja qt6-connectivity qt6-tools qt6-declarative pkgconf libpulse
-cd ~/.config/omarchy/plugins/io.github.thisisgm.omapods/daemon
+cd ~/.config/omarchy/plugins/t3mon.omapods/daemon
 cmake -B build -G Ninja -DBUILD_TESTING=OFF && cmake --build build
 cmake --install build --prefix ~/.local
 systemctl --user daemon-reload
@@ -186,9 +183,9 @@ which is where the panel finds `librepods-ctl`. The unit is bound to
 
 ```bash
 systemctl --user disable --now librepods.service
-xargs rm -f < ~/.config/omarchy/plugins/io.github.thisisgm.omapods/daemon/build/install_manifest.txt
+xargs rm -f < ~/.config/omarchy/plugins/t3mon.omapods/daemon/build/install_manifest.txt
 rm -rf ~/.config/AirPodsTrayApp ~/.local/state/librepods
-omarchy plugin remove io.github.thisisgm.omapods
+omarchy plugin remove t3mon.omapods
 ```
 
 The daemon installs into `~/.local`, so it outlives the plugin. CMake lists what it
@@ -257,12 +254,6 @@ The hard part is not this panel. It is
 reverse-engineered Apple's AAP protocol over L2CAP and the BLE advertisement
 path that carries battery, in-ear and case lid state. The daemon in `daemon/` is
 a modified copy of his work, and this panel is a display for it.
-
-## Support
-
-If this saved you an afternoon, you can
-[sponsor me on GitHub](https://github.com/sponsors/thisisgm) or
-[buy me a coffee](https://buymeacoffee.com/thisisgm).
 
 ## Licence
 

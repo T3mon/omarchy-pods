@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.thisisgm.omapods",
+  "id": "t3mon.omapods",
   "name": "AirPods",
-  "version": "1.3.6",
-  "author": "GM",
+  "version": "1.4.0",
+  "author": "T3mon",
   "license": "MIT",
+  "homepage": "https://github.com/T3mon/omarchy-pods",
   "description": "AirPods in the Omarchy bar: per-pod and case battery, listening mode, adaptive noise level, conversation awareness, one-bud ANC and ear detection.",
   "kinds": [
     "bar-widget"

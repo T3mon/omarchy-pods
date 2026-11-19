@@ -9,7 +9,7 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "io.github.thisisgm.omapods"
+  moduleName: "t3mon.omapods"
   ipcTarget: "omapods"
   manageIpc: false
 
